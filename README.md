@@ -1,5 +1,7 @@
 # Study Assistant — AAI 5015
 
+**Live demo:** <https://study-assistant-55o2.onrender.com>
+
 A working implementation of the **Spaced Repetition Topic Recommender** described in the three AAI 5015 final-project papers. Study content is pulled from the course Canvas (modules 6–10: probability and statistics). The app implements all three mathematical layers end-to-end:
 
 1. **Part 1 — Bayesian belief updating** with an exponential time-decay prior (`backend/bayes.py`)
