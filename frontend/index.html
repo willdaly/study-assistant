@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Study Assistant — AAI 5015</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1419;
+    --panel: #161c24;
+    --panel-2: #1d242e;
+    --border: #2a3340;
+    --fg: #e6edf3;
+    --muted: #8b98a5;
+    --accent: #4ea1ff;
+    --good: #3fb950;
+    --mid:  #d29922;
+    --bad:  #f85149;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, system-ui, Segoe UI, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.5;
+  }
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+  }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: 0.2px; }
+  header .subtitle { color: var(--muted); font-size: 13px; }
+  nav { display: flex; gap: 4px; margin-left: auto; }
+  nav button {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid transparent;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  nav button.active {
+    color: var(--fg);
+    background: var(--panel);
+    border-color: var(--border);
+  }
+  main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+  }
+  .card h2 { margin: 0 0 8px 0; font-size: 16px; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .topic-grid { display: grid; gap: 8px; }
+  .topic-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 120px 110px 80px;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.1s;
+  }
+  .topic-row:hover { border-color: var(--accent); }
+  .topic-row .section { font-family: var(--mono); color: var(--muted); font-size: 12px; }
+  .topic-row .title { font-weight: 500; }
+  .meter {
+    height: 6px;
+    background: var(--panel-2);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+  .meter > div { height: 100%; transition: width 0.3s; }
+  .pill { font-family: var(--mono); font-size: 11px; padding: 2px 8px; border-radius: 10px; text-align: center; }
+  .pill.good { background: rgba(63, 185, 80, 0.2); color: var(--good); }
+  .pill.mid  { background: rgba(210, 153, 34, 0.2); color: var(--mid); }
+  .pill.bad  { background: rgba(248, 81, 73, 0.2); color: var(--bad); }
+  .pill.new  { background: rgba(78, 161, 255, 0.2); color: var(--accent); }
+  button.primary {
+    background: var(--accent);
+    color: #0b1220;
+    border: 0;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.ghost {
+    background: transparent;
+    color: var(--fg);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .question { border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin-bottom: 10px; }
+  .question .prompt { font-weight: 500; margin-bottom: 10px; }
+  .choice {
+    display: block;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    margin-bottom: 6px;
+    cursor: pointer;
+  }
+  .choice:hover { background: var(--panel-2); }
+  .choice.selected { border-color: var(--accent); background: rgba(78, 161, 255, 0.1); }
+  .choice.correct { border-color: var(--good); background: rgba(63, 185, 80, 0.1); }
+  .choice.wrong   { border-color: var(--bad);  background: rgba(248, 81, 73, 0.1); }
+  .choice input { margin-right: 10px; }
+  .explanation { font-size: 13px; color: var(--muted); margin-top: 8px; padding-left: 4px; border-left: 2px solid var(--border); padding: 6px 10px; }
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat { background: var(--panel-2); border-radius: 6px; padding: 10px 12px; }
+  .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat .value { font-size: 22px; font-family: var(--mono); margin-top: 2px; }
+  .topic-content { background: var(--panel-2); border-radius: 6px; padding: 12px 16px; font-size: 14px; white-space: pre-wrap; }
+  .gd-controls { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 10px; align-items: end; }
+  .gd-controls label { font-size: 12px; color: var(--muted); display: block; }
+  .gd-controls input, .gd-controls select {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 6px 8px;
+    color: var(--fg);
+    font-family: var(--mono);
+  }
+  .chart-wrap { position: relative; height: 320px; }
+  canvas { max-width: 100%; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 800px) {
+    .topic-row { grid-template-columns: 60px 1fr 70px; }
+    .topic-row .meter, .topic-row .retention { display: none; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .two-col { grid-template-columns: 1fr; }
+    .gd-controls { grid-template-columns: 1fr 1fr; }
+  }
+  pre { font-family: var(--mono); font-size: 12px; background: var(--panel-2); padding: 8px 10px; border-radius: 4px; overflow-x: auto; }
+  .eq { font-family: var(--mono); color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Study Assistant</h1>
+  <span class="subtitle">AAI 5015 — Spaced Repetition Topic Recommender</span>
+  <nav>
+    <button id="tab-dashboard" class="active" onclick="showTab('dashboard')">Dashboard</button>
+    <button id="tab-math" onclick="showTab('math')">Math Lab</button>
+    <button id="tab-about" onclick="showTab('about')">About</button>
+  </nav>
+</header>
+
+<main>
+
+<section id="view-dashboard">
+  <div class="card" id="summary-card">
+    <div class="stats-grid" id="summary-stats">
+      <div class="stat"><div class="label">Topics</div><div class="value" id="stat-total">—</div></div>
+      <div class="stat"><div class="label">Reviewed</div><div class="value" id="stat-reviewed">—</div></div>
+      <div class="stat"><div class="label">Avg retention</div><div class="value" id="stat-retention">—</div></div>
+      <div class="stat"><div class="label">Total attempts</div><div class="value" id="stat-attempts">—</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Topics — ranked by review priority</h2>
+    <div class="muted">Lowest retention first. Click any topic to take a quiz.</div>
+    <div class="topic-grid" id="topic-list" style="margin-top: 12px;"></div>
+  </div>
+</section>
+
+<section id="view-quiz" style="display: none;">
+  <div class="card">
+    <button class="ghost" onclick="showTab('dashboard')">← Back to dashboard</button>
+    <h2 id="quiz-title" style="margin-top: 10px;"></h2>
+    <div class="muted" id="quiz-meta"></div>
+    <details style="margin: 12px 0;"><summary class="muted" style="cursor: pointer;">Show topic content</summary>
+      <div class="topic-content" id="quiz-topic-content" style="margin-top: 8px;"></div>
+    </details>
+  </div>
+
+  <div id="quiz-questions"></div>
+
+  <div class="card" id="quiz-submit-card">
+    <button class="primary" id="btn-submit" onclick="submitQuiz()">Submit answers</button>
+  </div>
+
+  <div id="quiz-result" style="display: none;"></div>
+</section>
+
+<section id="view-math" style="display: none;">
+  <div class="card">
+    <h2>Math Lab — your data, live</h2>
+    <div class="muted">
+      Regression and gradient descent run on your actual quiz history:
+      <span class="eq">x</span> = days since last review, <span class="eq">y</span> = quiz score (0–100).
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Part 2 — Linear Regression (closed-form OLS)</h2>
+    <div id="regression-summary" class="muted">Loading…</div>
+    <div class="chart-wrap" style="margin-top: 12px;"><canvas id="chart-regression"></canvas></div>
+  </div>
+
+  <div class="card">
+    <h2>Part 3 — Gradient Descent</h2>
+    <div class="gd-controls">
+      <div>
+        <label>Mode</label>
+        <select id="gd-mode">
+          <option value="batch">Batch</option>
+          <option value="sgd">SGD</option>
+        </select>
+      </div>
+      <div>
+        <label>Learning rate α</label>
+        <input type="number" id="gd-lr" value="0.01" step="0.001" min="0.0001" />
+      </div>
+      <div>
+        <label>Epochs</label>
+        <input type="number" id="gd-epochs" value="2000" step="100" min="10" />
+      </div>
+      <div>
+        <label>Sample every</label>
+        <input type="number" id="gd-sample" value="10" step="1" min="1" />
+      </div>
+      <div>
+        <button class="primary" onclick="runGD()">Run</button>
+      </div>
+    </div>
+    <div id="gd-summary" class="muted" style="margin-top: 10px;">Run gradient descent to see results.</div>
+    <div class="two-col" style="margin-top: 12px;">
+      <div class="chart-wrap"><canvas id="chart-fit"></canvas></div>
+      <div class="chart-wrap"><canvas id="chart-loss"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<section id="view-about" style="display: none;">
+  <div class="card">
+    <h2>About this app</h2>
+    <p>This is the <b>Spaced Repetition Topic Recommender</b> described in Will Daly's final-project papers for AAI 5015 (Mathematical Concepts, Northeastern). It implements all three mathematical layers end-to-end:</p>
+    <ol>
+      <li><b>Part 1 — Bayesian updating.</b> For each topic, <span class="eq">P(retains | quiz evidence)</span> is updated after every quiz attempt, with an exponential time-decay prior controlled by a per-topic decay rate <span class="eq">α</span>.</li>
+      <li><b>Part 2 — Linear regression.</b> The model <span class="eq">ŷ = β₀ + β₁ x</span> is fit via closed-form OLS on your quiz history (<span class="eq">x</span> = days since review, <span class="eq">y</span> = score).</li>
+      <li><b>Part 3 — Gradient descent.</b> Batch GD and SGD fit the same model iteratively; you can vary the learning rate and watch the loss curve. This is what a self-tuning version of the assistant would use to learn <span class="eq">α</span> per student.</li>
+    </ol>
+    <h3>Data</h3>
+    <p>Study content comes from the AAI 5015 Canvas course — modules 6–10 (Probability 1, Probability 2, Statistics 1–3). Quiz questions are generated by Claude Haiku 4.5 from the extracted topic content during <code>scripts/seed.py</code>.</p>
+    <h3>Source</h3>
+    <pre>~/code/study-assistant/
+├── backend/
+│   ├── bayes.py         # Part 1
+│   ├── regression.py    # Part 2
+│   ├── gradient.py      # Part 3
+│   ├── db.py
+│   ├── schema.sql
+│   └── main.py          # FastAPI app
+├── data/topics/         # one .md per Canvas section (17 total)
+├── scripts/seed.py
+└── frontend/index.html  # this page</pre>
+  </div>
+</section>
+
+</main>
+
+<script>
+// ----- state --------------------------------------------------------------
+let state = { topics: [], currentTopic: null, currentQuestions: [], regressionChart: null, fitChart: null, lossChart: null };
+
+function retentionColor(r) {
+  if (r == null) return '#4ea1ff';
+  if (r >= 0.7) return '#3fb950';
+  if (r >= 0.4) return '#d29922';
+  return '#f85149';
+}
+
+function pillClass(r) {
+  if (r == null) return 'new';
+  if (r >= 0.7) return 'good';
+  if (r >= 0.4) return 'mid';
+  return 'bad';
+}
+
+function pct(x) { return (x * 100).toFixed(0) + '%'; }
+
+// ----- tab switching ------------------------------------------------------
+function showTab(tab) {
+  document.querySelectorAll('main > section').forEach(s => s.style.display = 'none');
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  if (tab === 'dashboard') {
+    document.getElementById('view-dashboard').style.display = '';
+    document.getElementById('tab-dashboard').classList.add('active');
+    loadTopics();
+  } else if (tab === 'math') {
+    document.getElementById('view-math').style.display = '';
+    document.getElementById('tab-math').classList.add('active');
+    loadMath();
+  } else if (tab === 'about') {
+    document.getElementById('view-about').style.display = '';
+    document.getElementById('tab-about').classList.add('active');
+  } else if (tab === 'quiz') {
+    document.getElementById('view-quiz').style.display = '';
+  }
+}
+
+// ----- dashboard ----------------------------------------------------------
+async function loadTopics() {
+  const r = await fetch('/api/topics');
+  const data = await r.json();
+  state.topics = data.topics;
+
+  const list = document.getElementById('topic-list');
+  list.innerHTML = '';
+  let reviewedCount = 0, retentionSum = 0, retentionN = 0;
+  for (const t of data.topics) {
+    const row = document.createElement('div');
+    row.className = 'topic-row';
+    const retText = t.last_reviewed_at == null ? 'new' : pct(t.retention_now);
+    const bar = t.last_reviewed_at == null ? 100 : Math.round(t.retention_now * 100);
+    const barColor = retentionColor(t.last_reviewed_at == null ? null : t.retention_now);
+    row.innerHTML = `
+      <div class="section">${t.section}</div>
+      <div class="title">${t.title}</div>
+      <div class="meter"><div style="width:${bar}%;background:${barColor}"></div></div>
+      <div class="retention muted" style="font-family: var(--mono); font-size: 12px;">
+        ${t.days_since_review != null ? t.days_since_review.toFixed(1) + ' days ago' : 'never'}
+      </div>
+      <div class="pill ${pillClass(t.last_reviewed_at == null ? null : t.retention_now)}">${retText}</div>
+    `;
+    row.onclick = () => openQuiz(t.id);
+    list.appendChild(row);
+    if (t.last_reviewed_at != null) { reviewedCount++; retentionSum += t.retention_now; retentionN++; }
+  }
+
+  document.getElementById('stat-total').textContent = data.topics.length;
+  document.getElementById('stat-reviewed').textContent = reviewedCount;
+  document.getElementById('stat-retention').textContent = retentionN ? pct(retentionSum / retentionN) : '—';
+
+  // attempts count: fetch math data to know total.
+  const m = await fetch('/api/math/data').then(r => r.json());
+  document.getElementById('stat-attempts').textContent = m.n;
+}
+
+// ----- quiz ---------------------------------------------------------------
+async function openQuiz(topicId) {
+  showTab('quiz');
+  document.getElementById('quiz-questions').innerHTML = '<div class="card muted">Loading…</div>';
+  document.getElementById('quiz-result').style.display = 'none';
+  document.getElementById('quiz-submit-card').style.display = '';
+
+  const r = await fetch(`/api/topics/${topicId}`);
+  const data = await r.json();
+  state.currentTopic = data.topic;
+  // Sort by id so we submit answers in a stable order matching server scoring.
+  state.currentQuestions = data.questions.slice().sort((a, b) => a.id - b.id);
+
+  document.getElementById('quiz-title').textContent = `${data.topic.section} — ${data.topic.title}`;
+  document.getElementById('quiz-meta').textContent = `Module ${data.topic.module} · ${state.currentQuestions.length} questions`;
+  document.getElementById('quiz-topic-content').textContent = data.topic.content;
+
+  const qContainer = document.getElementById('quiz-questions');
+  qContainer.innerHTML = '';
+  if (state.currentQuestions.length === 0) {
+    qContainer.innerHTML = '<div class="card muted">No questions for this topic yet. Run <code>python scripts/seed.py</code> with ANTHROPIC_API_KEY set to generate them.</div>';
+    document.getElementById('quiz-submit-card').style.display = 'none';
+    return;
+  }
+  state.currentQuestions.forEach((q, i) => {
+    const div = document.createElement('div');
+    div.className = 'question card';
+    div.innerHTML = `
+      <div class="prompt">${i + 1}. ${q.prompt}</div>
+      ${q.choices.map((c, idx) => `
+        <label class="choice" data-idx="${idx}">
+          <input type="radio" name="q${i}" value="${idx}" />${c}
+        </label>
+      `).join('')}
+    `;
+    div.querySelectorAll('.choice').forEach(el => {
+      el.onclick = () => {
+        div.querySelectorAll('.choice').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+      };
+    });
+    qContainer.appendChild(div);
+  });
+}
+
+async function submitQuiz() {
+  const answers = state.currentQuestions.map((q, i) => {
+    const sel = document.querySelector(`input[name="q${i}"]:checked`);
+    return sel ? parseInt(sel.value, 10) : -1;
+  });
+  if (answers.some(a => a === -1)) {
+    alert('Please answer every question.');
+    return;
+  }
+  document.getElementById('btn-submit').disabled = true;
+
+  const r = await fetch(`/api/topics/${state.currentTopic.id}/attempt`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ answers }),
+  });
+  const data = await r.json();
+
+  // Render results
+  const resDiv = document.getElementById('quiz-result');
+  resDiv.style.display = '';
+  document.getElementById('quiz-submit-card').style.display = 'none';
+  const scorePct = Math.round(data.score * 100);
+  resDiv.innerHTML = `
+    <div class="card">
+      <h2>Results</h2>
+      <div class="stats-grid">
+        <div class="stat"><div class="label">Score</div><div class="value">${data.correct}/${data.total}</div></div>
+        <div class="stat"><div class="label">%</div><div class="value" style="color:${retentionColor(data.score)}">${scorePct}%</div></div>
+        <div class="stat"><div class="label">Days since review</div><div class="value">${data.days_since_review.toFixed(1)}</div></div>
+        <div class="stat"><div class="label">P(retains) after</div><div class="value">${pct(data.belief_after)}</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Review</h2>
+      ${data.feedback.map((f, i) => `
+        <div class="question">
+          <div class="prompt">${i + 1}. ${f.prompt}</div>
+          ${f.choices.map((c, idx) => {
+            let cls = 'choice';
+            if (idx === f.correct_index) cls += ' correct';
+            else if (idx === f.selected && idx !== f.correct_index) cls += ' wrong';
+            return `<div class="${cls}">${c}</div>`;
+          }).join('')}
+          <div class="explanation"><b>Why:</b> ${f.explanation}</div>
+        </div>
+      `).join('')}
+      <button class="ghost" onclick="showTab('dashboard')">← Back to dashboard</button>
+    </div>
+  `;
+  document.getElementById('btn-submit').disabled = false;
+}
+
+// ----- math lab -----------------------------------------------------------
+async function loadMath() {
+  const [dataResp, regResp] = await Promise.all([
+    fetch('/api/math/data').then(r => r.json()),
+    fetch('/api/math/regression').then(r => r.json()),
+  ]);
+
+  const summary = document.getElementById('regression-summary');
+  if (!regResp.ok) {
+    summary.textContent = `Not enough data yet (${dataResp.n} attempt${dataResp.n === 1 ? '' : 's'}). Take at least two quizzes on different days.`;
+    return;
+  }
+  summary.innerHTML = `
+    Fit: <span class="eq">ŷ = ${regResp.beta0.toFixed(2)} ${regResp.beta1 >= 0 ? '+' : '-'} ${Math.abs(regResp.beta1).toFixed(3)}·x</span>
+    &nbsp;·&nbsp; r = ${regResp.r.toFixed(3)} &nbsp;·&nbsp; R² = ${regResp.r_squared.toFixed(3)} &nbsp;·&nbsp; n = ${regResp.n}
+  `;
+
+  // Scatter + regression line.
+  const pts = dataResp.points;
+  const xMin = Math.min(...pts.map(p => p.x), 0);
+  const xMax = Math.max(...pts.map(p => p.x), 1);
+  const linePts = [
+    { x: xMin, y: regResp.beta0 + regResp.beta1 * xMin },
+    { x: xMax, y: regResp.beta0 + regResp.beta1 * xMax },
+  ];
+
+  if (state.regressionChart) state.regressionChart.destroy();
+  state.regressionChart = new Chart(document.getElementById('chart-regression'), {
+    type: 'scatter',
+    data: {
+      datasets: [
+        { label: 'Quiz attempts', data: pts, backgroundColor: '#4ea1ff', pointRadius: 5 },
+        { label: 'OLS fit', type: 'line', data: linePts, borderColor: '#f85149', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, showLine: true },
+      ],
+    },
+    options: chartOpts('Days since last review', 'Score (0–100)'),
+  });
+}
+
+async function runGD() {
+  const mode = document.getElementById('gd-mode').value;
+  const lr = parseFloat(document.getElementById('gd-lr').value);
+  const epochs = parseInt(document.getElementById('gd-epochs').value, 10);
+  const sample = parseInt(document.getElementById('gd-sample').value, 10);
+
+  const r = await fetch('/api/math/gradient', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ mode, learning_rate: lr, epochs, sample_every: sample }),
+  });
+  const data = await r.json();
+
+  const sum = document.getElementById('gd-summary');
+  if (!data.ok) { sum.textContent = data.reason; return; }
+  const divergedMsg = data.diverged ? ' <span style="color:var(--bad)">(diverged — try a smaller α)</span>' : '';
+  sum.innerHTML = `
+    ${data.mode.toUpperCase()} · α = ${data.learning_rate} · ${data.epochs} epochs
+    &nbsp;·&nbsp; final <span class="eq">w = ${data.w.toFixed(3)}, b = ${data.b.toFixed(2)}</span>
+    &nbsp;·&nbsp; MSE = ${data.final_mse.toFixed(2)}${divergedMsg}
+  `;
+
+  // Fit chart: scatter of data + GD line, plus OLS reference.
+  const [dataResp, regResp] = await Promise.all([
+    fetch('/api/math/data').then(r => r.json()),
+    fetch('/api/math/regression').then(r => r.json()),
+  ]);
+  const pts = dataResp.points;
+  const xMin = Math.min(...pts.map(p => p.x), 0);
+  const xMax = Math.max(...pts.map(p => p.x), 1);
+  const gdLine = [
+    { x: xMin, y: data.b + data.w * xMin },
+    { x: xMax, y: data.b + data.w * xMax },
+  ];
+  const olsLine = regResp.ok ? [
+    { x: xMin, y: regResp.beta0 + regResp.beta1 * xMin },
+    { x: xMax, y: regResp.beta0 + regResp.beta1 * xMax },
+  ] : [];
+
+  if (state.fitChart) state.fitChart.destroy();
+  state.fitChart = new Chart(document.getElementById('chart-fit'), {
+    type: 'scatter',
+    data: {
+      datasets: [
+        { label: 'Attempts', data: pts, backgroundColor: '#4ea1ff', pointRadius: 4 },
+        { label: 'GD fit', type: 'line', data: gdLine, borderColor: '#f85149', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, showLine: true },
+        { label: 'OLS reference', type: 'line', data: olsLine, borderColor: '#8b98a5', borderDash: [4, 4], borderWidth: 1.5, pointRadius: 0, showLine: true },
+      ],
+    },
+    options: chartOpts('Days since last review', 'Score'),
+  });
+
+  if (state.lossChart) state.lossChart.destroy();
+  state.lossChart = new Chart(document.getElementById('chart-loss'), {
+    type: 'line',
+    data: {
+      datasets: [{
+        label: 'MSE over epochs',
+        data: data.history.map(h => ({ x: h.epoch, y: h.mse })),
+        borderColor: '#3fb950', backgroundColor: 'transparent', pointRadius: 0, borderWidth: 2,
+      }],
+    },
+    options: chartOpts('Epoch', 'MSE'),
+  });
+}
+
+function chartOpts(xLabel, yLabel) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 200 },
+    scales: {
+      x: { type: 'linear', title: { display: true, text: xLabel, color: '#8b98a5' }, ticks: { color: '#8b98a5' }, grid: { color: '#2a3340' } },
+      y: { title: { display: true, text: yLabel, color: '#8b98a5' }, ticks: { color: '#8b98a5' }, grid: { color: '#2a3340' } },
+    },
+    plugins: { legend: { labels: { color: '#e6edf3' } } },
+  };
+}
+
+// init
+loadTopics();
+</script>
+</body>
+</html>
